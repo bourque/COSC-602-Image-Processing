@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 import numpy as np
 from skimage.io import imread
 from skimage.io import imsave
@@ -5,8 +7,13 @@ from skimage.io import imsave
 # -----------------------------------------------------------------------------
 
 def apply_mask(filter_mask):
-    """
+    """Apply the given filter mask to a test image.
 
+    Parameters
+    ----------
+    filter_mask : tuple
+        A tuple whose 0th element is the mask array and whose 1st
+        element is the name of the mask.
     """
 
     mask = filter_mask[0]
@@ -57,8 +64,21 @@ def apply_mask(filter_mask):
 # -----------------------------------------------------------------------------
 
 def convert_user_mask_to_array(mask_elements):
-    """
+    """Create a 3x3 or 5x5 mask for the given list of individual
+    mask elements.
 
+    Parameters
+    ----------
+    mask_elements : list of floats
+        A list of floats from which to construct the 3x3 or 5x5 mask.
+        If there are 9 elements in the list, a 3x3 mask is constructed.
+        If there are 25 elements, a 5x5 mask is constructed.
+
+    Returns
+    -------
+    mask : 2D array
+        A 3x3 or 5x5 2D array corresponding to the user-suppled mask
+        elements.
     """
 
     if len(mask_elements) == 9:
@@ -78,8 +98,16 @@ def convert_user_mask_to_array(mask_elements):
 # -----------------------------------------------------------------------------
 
 def get_filter_dict():
-    """
+    """Construct a dictionary holding the 6 pre-defined masks and their
+    names.
 
+    Returns
+    -------
+    filter_dict : dictionary
+        A dictionary whose keys are integer values corresponding to the
+        mask number, and whose values are tuples.  The 0th element of
+        the tuple is the 2D mask array, and the 1st element is the name
+        of the mask.
     """
 
     # Define the different types of masks
@@ -116,8 +144,26 @@ def get_filter_dict():
 # -----------------------------------------------------------------------------
 
 def get_neighborhood(image, row, col, mode):
-    """
+    """Return a 3x3 or 5x5 2D array of the local neighborhood pixels
+    surrounding the given row and column.
 
+    Parameters
+    ----------
+    image : 2D array
+        The image from which to grab the neighborhood pixels.
+    row : int
+        The row number of the central pixel.
+    col : int
+        The column number of the central pixel.
+    mode : string
+        Can either be '3x3' to return a 3x3 neighborhood, or '5x5' to
+        return a 5x5 neighborhood.
+
+    Returns
+    -------
+    neighborhood : 2D array
+        A 2D array of pixel values surrounding the central row/col
+        pixel in the image.
     """
 
     if mode == '3x3':
@@ -134,6 +180,7 @@ def get_neighborhood(image, row, col, mode):
 
     return neighborhood
 
+# -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
