@@ -49,6 +49,20 @@ def apply_mask(filter_mask):
 
 # -----------------------------------------------------------------------------
 
+def convert_user_mask_to_array(mask_elements):
+    """
+
+    """
+
+    if len(mask_elements) == 9:
+        mask = np.array([[mask_elements[0], mask_elements[1], mask_elements[2]],
+                         [mask_elements[3], mask_elements[4], mask_elements[5]],
+                         [mask_elements[6], mask_elements[7], mask_elements[8]]])
+
+    return mask
+
+# -----------------------------------------------------------------------------
+
 if __name__ == '__main__':
 
     # Define the different types of masks
@@ -88,6 +102,7 @@ if __name__ == '__main__':
     response = raw_input(menu)
     assert response in ['1', '2', '3'], 'Not a valid response. Please try again.'
 
+    # For pre-defined masks
     if response == '1':
         menu = '\nPlease select a mask:\n'
         menu += '\n(1) Mean filter 1: \n{}\n'.format(mean_filter1)
@@ -99,3 +114,12 @@ if __name__ == '__main__':
         response = raw_input(menu)
         assert response in ['1', '2', '3', '4', '5', '6'], 'Not a valid response.  Please try again.'
         apply_mask(filter_dict[response])
+
+    # For user-suppled 3x3 mask
+    if response == '2':
+        prompt = '\nPlease enter 9 elements in order from left to right, top to bottom,\n'
+        prompt += '\neach separated by a comma (e.g. "-1, -1, -1, -1, 9, -1, -1, -1, -1"):\n'
+        mask_elements = raw_input(prompt)
+        mask_elements = [float(item) for item in mask_elements.split(',')]
+        mask = convert_user_mask_to_array(mask_elements)
+        apply_mask((mask, 'user_3x3_mask'))
