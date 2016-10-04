@@ -45,8 +45,8 @@ def sobel(image_file):
     vertical_mask, horizontal_mask = get_sobel_masks()
     nrows = image.shape[0] - 1
     ncols = image.shape[1] - 1
-    vertical_convolve = np.copy(image).astype(float)
-    horizontal_convolve = np.copy(image).astype(float)
+    sobel_magnitude = np.copy(image.astype(float))
+    sobel_magnitude_with_roberts = np.copy(image.astype(float))
 
     # Iterate over the image
     for row in range(1,nrows):
@@ -58,18 +58,25 @@ def sobel(image_file):
             vertical_solution = np.sum(neighborhood * vertical_mask)
             horizontal_solution = np.sum(neighborhood * vertical_mask)
 
-            # Replace the central pixel with the convolution solution
-            vertical_convolve[row,col] = vertical_solution
-            horizontal_convolve[row,col] = horizontal_solution
+            # Calculate the Sobel magnitude
+            sobel_mag = np.sqrt(vertical_solution**2 + horizontal_solution**2)
 
-    # Calculate the Sobel magnitude
-    sobel_magnitude = np.sqrt(vertical_convolve**2 + horizontal_convolve**2)
-    sobel_magnitude /= np.max(np.abs(sobel_magnitude))
+            # Replace the pixel with the Sobel magnitude
+            sobel_magnitude[row,col] = sobel_mag
 
     # Remap the Sobel magnitude with Roberts
+    for row in range(1,nrows):
+        for col in range(1,ncols):
+            roberts = np.abs(sobel_magnitude[row,col] - sobel_magnitude[row-1,col-1]) + \
+                      np.abs(sobel_magnitude[row,col-1] - sobel_magnitude[row-1,col])
+            sobel_magnitude_with_roberts[row,col] = roberts
+
+    # Normalize the images to -1, 1 (required by skimage)
+    sobel_magnitude_with_roberts /= np.max(np.abs(sobel_magnitude_with_roberts))
 
     # Write out new image
-    imsave(image_file.replace('.bmp', '_sobel.bmp'), sobel_magnitude)
+    imsave(image_file.replace('.bmp', '_sobel.bmp'), sobel_magnitude_with_roberts)
+    print '\nImage saved to {}'.format(image_file.replace('.bmp', '_sobel.bmp'))
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
