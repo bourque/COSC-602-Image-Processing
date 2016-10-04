@@ -1,5 +1,36 @@
 #! /usr/bin/env python
 
+"""Apply the Sobel edge detection algorithm on the given image.
+
+This program will allow the user to supply a grayscale image to test
+the Sobel edge detection algorithm on.
+
+Author:
+    Matthew Bourque, October, 2016
+
+Use:
+    The user can exectute this program from the command line as such:
+
+        >>> python edge_detection.py
+
+    Doing so will run the program with the pre-defined test image
+    "cam.bmp".
+
+    The user may also import the sobel() function from within the
+    python, and pass it an image file, as such:
+
+        from edge_detection import sobel()
+        sobel('my_image.bmp')
+
+Outputs:
+    <image_file>_sobel.bmp - The image with the Sobel edge detection
+    applied.
+
+Dependencies:
+    The user must have a Python 2.7 installion.  The numpy and skimage
+    external libraries are also required.
+"""
+
 import numpy as np
 from skimage.io import imread
 from skimage.io import imsave
@@ -7,7 +38,23 @@ from skimage.io import imsave
 # -----------------------------------------------------------------------------
 
 def get_neighborhood(image, row, col):
-    """
+    """Return a 3x3 2D array of the local neighborhood pixels
+    surrounding the given row and column.
+
+    Parameters
+    ----------
+    image : 2D array
+        The image from which to grab the neighborhood pixels.
+    row : int
+        The row number of the central pixel.
+    col : int
+        The column number of the central pixel.
+
+    Returns
+    -------
+    neighborhood : 2D array
+        A 2D array of pixel values surrounding the central row/col
+        pixel in the image.
     """
 
     neighborhood = np.array([[image[row-1,col-1], image[row-1,col], image[row-1, col+1]],
@@ -19,7 +66,15 @@ def get_neighborhood(image, row, col):
 # -----------------------------------------------------------------------------
 
 def get_sobel_masks():
-    """
+    """Return the 3x3 mask arrays corresponding to the Sobel virtical
+    and horizontal masks.
+
+    Returns
+    -------
+    vertical_mask : 2D array
+        The virtical Sobel mask.
+    horizontal_mask : 2D array
+        The horizontal Sobel mask.
     """
 
     vertical_mask = np.array([[-1., 2., -1.],
@@ -36,6 +91,11 @@ def get_sobel_masks():
 
 def sobel(image_file):
     """Apply the Sobel edge detection alrogithm on the given image.
+
+    Parameters
+    ----------
+    image_file : string
+        The path to the image file.
     """
 
     # Test image
@@ -83,7 +143,7 @@ def sobel(image_file):
 
 if __name__ == '__main__':
 
-    # Get image to test with
+    # Image to test with
     image_file = 'cam.bmp'
 
     sobel(image_file)
