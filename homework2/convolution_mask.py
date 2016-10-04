@@ -1,5 +1,27 @@
 #! /usr/bin/env python
 
+"""Apply various mean and enhancement filters to images.
+
+This program will allow the user to apply a mean or enhancement filter
+to the test image of a bowl.  The user may select from one of several
+filters, or supply their own 3x3 or 5x5 filter.
+
+Author:
+    Matthew Bourque, 10/16
+
+Use:
+    This program is intended to be executed from the command line as
+    such:
+        >>> python convolution_mask.py
+
+    The user will then be prompted to either select a pre-defined
+    filter, or supply their own.
+
+Dependencies:
+    The user must have a Python 2.7 installion.  The numpy and skimage
+    external libraries are also required.
+"""
+
 import numpy as np
 from skimage.io import imread
 from skimage.io import imsave
@@ -25,8 +47,8 @@ def apply_mask(filter_mask):
     image_with_noise = imread('bowl_with_noise.jpg')
 
     # Initializations
-    modified_image = np.copy(image)
-    modified_image_with_noise = np.copy(image_with_noise)
+    modified_image = np.copy(image).astype(float)
+    modified_image_with_noise = np.copy(image_with_noise).astype(float)
 
     if mask.size == 9:
         start = 1
@@ -57,9 +79,15 @@ def apply_mask(filter_mask):
             modified_image[row,col] = solution
             modified_image_with_noise[row,col] = solution_with_noise
 
+    # Normalize the images to -1, 1 (required by skimage)
+    modified_image /= np.max(np.abs(modified_image))
+    modified_image_with_noise /= np.max(np.abs(modified_image_with_noise))
+
     # Write out new image
     imsave('bowl_with_{}.jpg'.format(mask_name), modified_image)
+    print '\nFile written to bowl_with_{},jpg'.format(mask_name)
     imsave('bowl_with_{}_with_noise.jpg'.format(mask_name), modified_image_with_noise)
+    print 'File written to bowl_with_{}_with_noise,jpg'.format(mask_name)
 
 # -----------------------------------------------------------------------------
 
