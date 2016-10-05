@@ -1,3 +1,51 @@
+#! /usr/bin/env python
+
+"""Perform the Hough transform on a given image.
+
+Authors:
+    Matthew Bourque, October 2016
+
+Use:
+    This program can be executed via the command line as such:
+
+        >>> python hough_transform.py
+
+    In this case, the user will be prompted to supply the angles of
+    interest and the minimum number of pixel per line parameters.  The
+    user can also execute the program from within the python
+    environment as such:
+
+        from hough_transform import hough
+        hough(image_file, angles, pix_per_line)
+
+    where <image_file> is the file to process, <angles> is the angles
+    interest (e.g. (0,180)), and <pix_per_line> is the minimum number
+    of pixels per line (e.g. 10).  The user may also supply addition
+    arguments:
+
+        from hough_transform import hough
+        hough(image_file, angles, pix_per_line, delta_theta, delta_p, threshold)
+
+    where <delta_theta> is the change in theta to increment by (i.e.
+    the size of the theta block in the rho/theta space) (e.g. 1.0),
+    <delta_p> is the block size of rho in the rho/theta space, (e.g.
+    1.0) and <threshold> is the threshold to apply to the image file
+    (e.g. 100), above which will be considered a part of a line in the
+    image.
+
+    An example call would be the following:
+
+        hough('cam_sobel.bmp', (0,180), 10, 1.0, 1.0, 100)
+
+Output:
+    <image_file>_hough.bmp - The image with the Hough transform
+    applied.
+
+Dependencies:
+    The user must have a Python 2.7 installion.  The numpy and skimage
+    external libraries are also required.
+"""
+
 import numpy as np
 from skimage.io import imread
 from skimage.io import imsave
@@ -5,8 +53,26 @@ from skimage.io import imsave
 # -----------------------------------------------------------------------------
 
 def hough(image_file, angles, pix_per_line, delta_theta=1.0, delta_p = 1.0, threshold=100):
-    """
+    """Perform the Hough transform on the given image_file with the
+    given parameters.
 
+    Parameters
+    ----------
+    image_file : string
+        The path to the image to process.
+    angles : tuple
+        A tuple containing the angles of interst (e.g. (0,180)).
+    pix_per_line : int
+        The minimum number of pixels per line threshold that is applied
+        to the transformed image.
+    delta_theta (optional) : float
+        The change in theta to increment by while performing the Hough
+        transform (i.e. the theta block size in the rho/theta space).
+    delta_p (optional) : float
+        The block size of rho in the rho/theta space.
+    threshold (optional) : int
+        The threshold to apply to the image file, above which will be
+        considered a part of a line in the image.
     """
 
     # Open the image file
