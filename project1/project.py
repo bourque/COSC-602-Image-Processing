@@ -1,9 +1,8 @@
 #! /usr/bin/env python
 
 import os
+import warnings
 
-from astropy.io import fits
-from astropy.io import ascii
 from astropy.table import Table
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,7 +10,6 @@ from skimage.io import imread
 from skimage.io import imsave
 from skimage import util
 
-import warnings
 warnings.filterwarnings("ignore")
 
 # -----------------------------------------------------------------------------
@@ -20,20 +18,18 @@ def classify_object(data_dict):
     """
     """
 
-    print data_dict['Object #'], data_dict['Diameter'] / float(data_dict['Area'])
-
-    # Lines have relatively large diameter and are non-circular
-    if data_dict['Perimeter'] / float(data_dict['Area']) > 0.3 \
-    and (data_dict['Circularity'] < 0.5 or data_dict['Circularity'] > 1.5):
-        classification = 'Line'
-
     # Circles have cirulatiry close to 1
-    elif 0.5 <= data_dict['Circularity'] <= 1.5:
-        classification = 'Circle'
+    if 0.8 <= data_dict['Circularity'] <= 1.2:
+        classification = 1
+
+    # Lines have relatively large perimeter and are non-circular
+    elif data_dict['Perimeter'] / float(data_dict['Area']) > 0.3 \
+    and (data_dict['Circularity'] < 0.8 or data_dict['Circularity'] > 1.2):
+        classification = 2
 
     # Misc objects is everything else
     else:
-        classification = 'Misc'
+        classification = 3
 
     return classification
 
@@ -55,7 +51,7 @@ def find_circularity(area, perimeter):
 
     """
 
-    circularity = (4 * np.pi * area) / float(perimeter)**2
+    circularity = 4 * np.pi * (area / float(perimeter)**2)
     circularity = round(circularity, 3)
 
     return circularity
@@ -160,9 +156,6 @@ if __name__ == '__main__':
     print '\tReading in image {}'.format(image_file)
     image = imread(image_file)
 
-    # inverted = util.invert(image)
-    # imsave('test_invert.bmp', inverted)
-
     # Plot histogram to find threshold
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -192,31 +185,38 @@ if __name__ == '__main__':
     plt.savefig('test_marked.png')
     print '\tMarked image saved to test_marked.png'
 
-    if os.path.exists('image.fits'):
-        os.remove('image.fits')
-    hdu = fits.PrimaryHDU()
-    hdu1 = fits.ImageHDU(image)
-    hdulist = fits.HDUList([hdu, hdu1])
-    hdulist.writeto('image.fits')
-
     # The number of marked objects is the maximum value - 2
     num_objects = np.max(image) - 2
     print '\n\tThe number of objects found is {}\n'.format(num_objects)
 
     # Build table of statistics
     data_table = Table(
-        names=['Object #', 'Area', 'Diameter', 'Perimeter', 'Circularity', 'Classification'],
-        dtype=[int, int, int, int, float, str])
+        names=['Object', 'Area', 'Diameter', 'Perimeter', 'Circularity', 'Classification'],
+        dtype=[int, int, int, int, float, int])
     for object_number in range(2, num_objects+3):
         data_dict = {}
-        data_dict['Object #'] = object_number
+        data_dict['Object'] = object_number
         data_dict['Area'] = find_area(image, object_number)
         data_dict['Diameter'] = find_diameter(data_dict['Area'])
         data_dict['Perimeter'] = find_perimeter(image, object_number)
         data_dict['Circularity'] = find_circularity(data_dict['Area'], data_dict['Perimeter'])
-
-        # Classify the object
         data_dict['Classification'] = classify_object(data_dict)
-
         data_table.add_row(data_dict)
-    print '\nResults:\n\n{}'.format(data_table[:])
+    print '\nResults:\n\n{}'.format(data_table)
+    data_table.write('results.dat', format='ascii')
+    print '\n\tResults file written to results.dat'
+
+    # Make image of classified objects
+    classified_image = np.copy(image)
+    classified_image[classified_image == 1] = 0
+    for entry in data_table:
+        obj = np.where(classified_image == entry['Object'])
+        classified_image[obj] = entry['Classification']
+
+    # Make plot showing classified objects
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    im = ax.imshow(classified_image, interpolation='none')
+    fig.colorbar(im, ax=ax)
+    plt.savefig('test_classified.png')
+    print '\tClassification image saved to test_classified.png'
