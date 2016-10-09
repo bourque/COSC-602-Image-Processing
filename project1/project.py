@@ -160,7 +160,7 @@ if __name__ == '__main__':
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.hist(image)
-    plt.savefig('test_hist.png')
+    plt.savefig('test_hist.jpg')
 
     # Binary threshold the image
     threshold = 185
@@ -172,8 +172,8 @@ if __name__ == '__main__':
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.imshow(image, cmap='gray')
-    plt.savefig('test_threshold.png')
-    print '\tBinary threshold image saved to test_treshold.png'
+    plt.savefig('test_threshold.jpg')
+    print '\tBinary threshold image saved to test_treshold.jpg'
 
     # Mark the objects
     mark_image(image)
@@ -182,8 +182,8 @@ if __name__ == '__main__':
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.imshow(image, cmap='gray')
-    plt.savefig('test_marked.png')
-    print '\tMarked image saved to test_marked.png'
+    plt.savefig('test_marked.jpg')
+    print '\tMarked image saved to test_marked.jpg'
 
     # The number of marked objects is the maximum value - 2
     num_objects = np.max(image) - 2
@@ -218,5 +218,5 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     im = ax.imshow(classified_image, interpolation='none')
     fig.colorbar(im, ax=ax)
-    plt.savefig('test_classified.png')
-    print '\tClassification image saved to test_classified.png'
+    plt.savefig('test_classified.jpg')
+    print '\tClassification image saved to test_classified.jpg'
