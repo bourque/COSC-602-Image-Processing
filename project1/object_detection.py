@@ -1,5 +1,47 @@
 #! /usr/bin/env python
 
+"""Mark and classify objects in the test image for COSC 602 project 1.
+
+This program will mark and classify unique objects in the given image
+for COSC 602 Project 1 (renamed to "test.bmp").  To mark objects, the
+image is iterated over using 8-connectivity to identify unique objects
+and each object is marked with a unique value.  Once marked, various
+statistics such as area and perimeter are calculated for each object.
+Each object is then classified into one of three categories based on
+these statistics: (1) circular object (value=1), (2) line-like object
+(value=2), and miscellanous object (value=3).  Intermediate and final
+images and results are saved to the working directory.
+
+Authors:
+    Matthew Bourque, October 2016
+    Arielle Leone, October 2016
+
+Use:
+    This program is intended to be executed via the command line as
+    such:
+
+        >>> python object_detection.py
+
+Outputs:
+    Executing this program will result in several outputs:
+
+    (1) test_hist.jpg - A histogram of the pixel values in test.bmp,
+            used for determing a good binary threshold.
+    (2) test_threshold.jpg - The binary thresholded image.
+    (3) test_marked.jpg - The image with each object given a unique
+            value.
+    (4) results.dat - A file contaning statistics for each object (i.e.
+            object value, area, diameter, perimeter, circularity, and
+            classification number).
+    (5) test_classified.jpg - An image with each object having a value
+            of its corresponding classifcation number.
+
+Dependencies:
+    The user must have a Python 2.7 installation.  The astropy,
+    matplotlib, numpy, and skimage external libraries are also
+    required.
+"""
+
 import os
 import warnings
 
@@ -15,7 +57,23 @@ warnings.filterwarnings("ignore")
 # -----------------------------------------------------------------------------
 
 def classify_object(data_dict):
-    """
+    """Classify each object into one of three categories: (1) circular
+    objects (value=1), line-like objects (value=2), and miscellanous
+    objects (value=3).
+
+    Parameters
+    ----------
+    data_dict : dictionary
+        A dictionary whose keys are the object statistics (e.g. Area,
+        Perimeter, etc.) and whose values are the values for those
+        statistics.
+
+    Returns
+    -------
+    classification : int
+        The classification for the object.  1 is for circular objects,
+        2 is for line-like objects, 3 is for oddly shaped,
+        miscellanous objects.
     """
 
     # Circles have cirulatiry close to 1
@@ -36,8 +94,19 @@ def classify_object(data_dict):
 # -----------------------------------------------------------------------------
 
 def find_area(image, object_number):
-    """
+    """Return the area of the object.
 
+    Parameters
+    ----------
+    image : 2D array
+        The image in which the object is located.
+    object_number : int
+        The pixel value of the object.
+
+    Returns
+    -------
+    area : int
+        The area of the object.
     """
 
     area = image[np.where(image == object_number)].size
@@ -47,8 +116,20 @@ def find_area(image, object_number):
 # -----------------------------------------------------------------------------
 
 def find_circularity(area, perimeter):
-    """
+    """Return the circularity of the object.  The circularity is
+    defined as 4 * pi * area divided py the perimeter squared.
 
+    Parameters
+    ----------
+    area : int
+        The area of the object.
+    perimeter : int
+        The perimeter of the object.
+
+    Returns
+    -------
+    circularity : float
+        The circularity of the object.
     """
 
     circularity = 4 * np.pi * (area / float(perimeter)**2)
@@ -59,8 +140,17 @@ def find_circularity(area, perimeter):
 # -----------------------------------------------------------------------------
 
 def find_diameter(area):
-    """
+    """Return the diameter of the object.
 
+    Parameters
+    ----------
+    area : int
+        The area of the object.
+
+    Returns
+    -------
+    diameter : int
+        The diameter of the object.
     """
 
     diameter = np.sqrt(area / np.pi) * 2
@@ -71,11 +161,24 @@ def find_diameter(area):
 # -----------------------------------------------------------------------------
 
 def find_perimeter(image, object_number):
+    """Return the perimeter of the object.  The perimeter in this case
+    is defined as the number of pixels that have a '0' as a 4-connected
+    neighbor (i.e. doesn't have a neighboring pixel that is part of the
+    object itself).
+
+    Parameters
+    ----------
+    image : 2D array
+        The image in which the object is located.
+    object_number : int
+        The pixel value of the object.
+
+    Returns
+    -------
+    perimeter : int
+        The perimeter of the object.
     """
 
-    """
-
-    # The permieter is the number of '1' pixels that have '0' as neighbors
     nrows = image.shape[0]
     ncols = image.shape[1]
     perimeter = 0
@@ -95,7 +198,17 @@ def find_perimeter(image, object_number):
 # -----------------------------------------------------------------------------
 
 def mark_image(image):
-    """
+    """Mark each object in the image with a unique value.
+
+    Since the object pixels have a value of 0 and the 'background'
+    pixels have a value of 1, the unique value to mark objects with
+    starts with 2 (as to distinguish it from the background and other
+    objects) and increases by 1 for each unique object.
+
+    Parameters
+    ----------
+    image : 2D array
+        The image in which the objects reside.
     """
 
     print '\tMarking objects'
