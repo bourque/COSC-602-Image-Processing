@@ -306,6 +306,7 @@ if __name__ == '__main__':
     print '\n\tThe number of objects found is {}\n'.format(num_objects)
 
     # Update the data table with statistics
+    print '\tCalculating statistics'
     for object_number in range(2, num_objects+2):
         data_table[object_number-2]['Area'] = find_area(image, object_number)
         data_table[object_number-2]['Diameter'] = find_diameter(data_table[object_number-2]['Area'])
@@ -338,6 +339,7 @@ if __name__ == '__main__':
     fig = plt.figure()
     ax = fig.add_subplot(111)
     im = ax.imshow(classified_image, interpolation='none')
-    fig.colorbar(im, ax=ax)
+    cbar = fig.colorbar(im, ax=ax, ticks=[1, 2, 3])
+    cbar.ax.set_yticklabels(['Small', 'Medium', 'Large'])
     plt.savefig('test_classified.jpg')
     print '\tClassification image saved to test_classified.jpg'
