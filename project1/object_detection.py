@@ -8,9 +8,8 @@ image is iterated over using 8-connectivity to identify unique objects
 and each object is marked with a unique value.  Once marked, various
 statistics such as area and perimeter are calculated for each object.
 Each object is then classified into one of three categories based on
-these statistics: (1) circular object (value=1), (2) line-like object
-(value=2), and miscellanous object (value=3).  Intermediate and final
-images and results are saved to the working directory.
+these statistics: (1) small, (2) medium, and (3) large.  Intermediate
+and final images and results are saved to the working directory.
 
 Authors:
     Matthew Bourque, October 2016
@@ -56,10 +55,10 @@ warnings.filterwarnings("ignore")
 
 # -----------------------------------------------------------------------------
 
-def classify_object(data_dict):
-    """Classify each object into one of three categories: (1) circular
-    objects (value=1), line-like objects (value=2), and miscellanous
-    objects (value=3).
+def classify_objects(data_table):
+    """Classify each object into one of three categories (small,
+    medium, or large) based on the object's area, and update the data
+    table with the result.
 
     Parameters
     ----------
@@ -67,29 +66,17 @@ def classify_object(data_dict):
         A dictionary whose keys are the object statistics (e.g. Area,
         Perimeter, etc.) and whose values are the values for those
         statistics.
-
-    Returns
-    -------
-    classification : int
-        The classification for the object.  1 is for circular objects,
-        2 is for line-like objects, 3 is for oddly shaped,
-        miscellanous objects.
     """
 
-    # Circles have cirulatiry close to 1
-    if 0.8 <= data_dict['Circularity'] <= 1.2:
-        classification = 1
+    max_area = max(data_table['Area'])
 
-    # Lines have relatively large perimeter and are non-circular
-    elif data_dict['Perimeter'] / float(data_dict['Area']) > 0.3 \
-    and (data_dict['Circularity'] < 0.8 or data_dict['Circularity'] > 1.2):
-        classification = 2
-
-    # Misc objects is everything else
-    else:
-        classification = 3
-
-    return classification
+    for obj in data_table:
+        if obj['Area'] <= (max_area / 3.):
+            obj['Classification'] = 'Small'
+        elif (max_area / 3.) < obj['Area'] < (2 * max_area / 3.):
+            obj['Classification'] = 'Medium'
+        else:
+            obj['Classification'] = 'Large'
 
 # -----------------------------------------------------------------------------
 
@@ -133,7 +120,7 @@ def find_circularity(area, perimeter):
     """
 
     circularity = 4 * np.pi * (area / float(perimeter)**2)
-    circularity = round(circularity, 3)
+    circularity = int(round(circularity*100, 0))
 
     return circularity
 
@@ -162,7 +149,7 @@ def find_diameter(area):
 
 def find_perimeter(image, object_number):
     """Return the perimeter of the object.  The perimeter in this case
-    is defined as the number of pixels that have a '0' as a 4-connected
+    is defined as the number of pixels that have a '0' as a 8-connected
     neighbor (i.e. doesn't have a neighboring pixel that is part of the
     object itself).
 
@@ -188,8 +175,11 @@ def find_perimeter(image, object_number):
 
             if image[row,col] == object_number:
 
-                # Check to see if nieghbors contain 0
-                neighbors = [image[row-1,col], image[row,col+1], image[row+1,col], image[row,col-1]]
+                # Check to see if an 8-connected nieghbor contains a 1
+                neighbors = [
+                    image[row-1,col-1], image[row-1,col], image[row-1,col+1],
+                    image[row,col-1], image[row,col], image[row,col+1],
+                    image[row+1,col-1], image[row+1,col], image[row+1,col+1]]
                 if 1 in neighbors:
                     perimeter += 1
 
@@ -197,7 +187,7 @@ def find_perimeter(image, object_number):
 
 # -----------------------------------------------------------------------------
 
-def mark_image(image):
+def mark_image(image, data_table):
     """Mark each object in the image with a unique value.
 
     Since the object pixels have a value of 0 and the 'background'
@@ -205,10 +195,15 @@ def mark_image(image):
     starts with 2 (as to distinguish it from the background and other
     objects) and increases by 1 for each unique object.
 
+    During this function, the data_table is also updated with the
+    object number and its (first found) position.
+
     Parameters
     ----------
     image : 2D array
         The image in which the objects reside.
+    data_table : table
+        A table that is to hold results.
     """
 
     print '\tMarking objects'
@@ -226,6 +221,10 @@ def mark_image(image):
 
                 # Mark the pixel
                 image[row,col] = value
+
+                # Update the data table with object number and position
+                data_dict = {'Object' : value - 1, 'Position' : (row,col)}
+                data_table.add_row(data_dict)
 
                 # Sweep right and down
                 for row in range(0,nrows):
@@ -258,7 +257,6 @@ def mark_image(image):
 
                 value += 1
 
-
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
@@ -276,7 +274,7 @@ if __name__ == '__main__':
     plt.savefig('test_hist.jpg')
 
     # Binary threshold the image
-    threshold = 185
+    threshold = 175
     print '\tApplying binary threshold with value {}'.format(threshold)
     image[np.where(image < threshold)] = 0
     image[np.where(image >= threshold)] = 1
@@ -288,8 +286,13 @@ if __name__ == '__main__':
     plt.savefig('test_threshold.jpg')
     print '\tBinary threshold image saved to test_treshold.jpg'
 
+    # Initialize a data table that will hold results
+    data_table = Table(
+        names=['Object', 'Position', 'Area', 'Diameter', 'Perimeter', 'Circularity', 'Classification'],
+        dtype=[int, tuple, int, int, int, int, str])
+
     # Mark the objects
-    mark_image(image)
+    mark_image(image, data_table)
 
     # Save the marked image
     fig = plt.figure()
@@ -299,32 +302,37 @@ if __name__ == '__main__':
     print '\tMarked image saved to test_marked.jpg'
 
     # The number of marked objects is the maximum value - 2
-    num_objects = np.max(image) - 2
+    num_objects = np.max(image) - 1
     print '\n\tThe number of objects found is {}\n'.format(num_objects)
 
-    # Build table of statistics
-    data_table = Table(
-        names=['Object', 'Area', 'Diameter', 'Perimeter', 'Circularity', 'Classification'],
-        dtype=[int, int, int, int, float, int])
-    for object_number in range(2, num_objects+3):
-        data_dict = {}
-        data_dict['Object'] = object_number
-        data_dict['Area'] = find_area(image, object_number)
-        data_dict['Diameter'] = find_diameter(data_dict['Area'])
-        data_dict['Perimeter'] = find_perimeter(image, object_number)
-        data_dict['Circularity'] = find_circularity(data_dict['Area'], data_dict['Perimeter'])
-        data_dict['Classification'] = classify_object(data_dict)
-        data_table.add_row(data_dict)
-    print '\nResults:\n\n{}'.format(data_table)
-    data_table.write('results.dat', format='ascii')
-    print '\n\tResults file written to results.dat'
+    # Update the data table with statistics
+    for object_number in range(2, num_objects+2):
+        data_table[object_number-2]['Area'] = find_area(image, object_number)
+        data_table[object_number-2]['Diameter'] = find_diameter(data_table[object_number-2]['Area'])
+        data_table[object_number-2]['Perimeter'] = find_perimeter(image, object_number)
+        data_table[object_number-2]['Circularity'] = find_circularity(data_table[object_number-2]['Area'], data_table[object_number-2]['Perimeter'])
+
+    # Classify each object
+    print '\tClassifying objects'
+    classify_objects(data_table)
 
     # Make image of classified objects
     classified_image = np.copy(image)
     classified_image[classified_image == 1] = 0
     for entry in data_table:
-        obj = np.where(classified_image == entry['Object'])
-        classified_image[obj] = entry['Classification']
+        obj = np.where(classified_image == entry['Object'] + 1)
+        if entry['Classification'] == 'S':
+            classification_value = 1
+        elif entry['Classification'] == 'M':
+            classification_value = 2
+        else:
+            classification_value = 3
+        classified_image[obj] = classification_value
+
+    # Print out report of results
+    print '\nResults:\n\n{}'.format(data_table)
+    data_table.write('results.dat', format='ascii')
+    print '\n\tResults file written to results.dat'
 
     # Make plot showing classified objects
     fig = plt.figure()
