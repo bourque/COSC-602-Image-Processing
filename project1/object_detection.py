@@ -49,7 +49,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage.io import imread
 from skimage.io import imsave
-from skimage import util
 
 warnings.filterwarnings("ignore")
 
@@ -332,7 +331,7 @@ if __name__ == '__main__':
 
     # Print out report of results
     print '\nResults:\n\n{}'.format(data_table)
-    data_table.write('results.dat', format='ascii')
+    data_table.write('results.dat', format='ascii.fixed_width')
     print '\n\tResults file written to results.dat'
 
     # Make plot showing classified objects
