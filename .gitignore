@@ -1,3 +1,5 @@
 *._*
 *.ipynb_checkpoints/
 *.pyc
+*.fits
+*.nfs.*
