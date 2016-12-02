@@ -197,105 +197,126 @@ def mark_image(image):
 
 if __name__ == '__main__':
 
-    # Get list of files
-    filenames = glob.glob('data/nn*_blv_tmp.fits')
+    # # Get list of files
+    # filenames = glob.glob('data/nn*_blv_tmp.fits')
 
-    for i, filename in enumerate(filenames):
+    # for i, filename in enumerate(filenames):
 
-        print('\n\nProcessing image {} of {}'.format(i+1, len(filenames)))
-        rootname = os.path.basename(filename).split('_')[0]
+    #     print('\n\nProcessing image {} of {}'.format(i+1, len(filenames)))
+    #     rootname = os.path.basename(filename).split('_')[0]
 
-        # Read in the image
-        orig_data = fits.getdata(filename, 1)
+    #     # Read in the image
+    #     orig_data = fits.getdata(filename, 1)
 
-        # Get subset of image to test with
-        orig_data = orig_data[0:1000, 0:1000]
-        data = np.copy(orig_data)
+    #     # Get subset of image to test with
+    #     orig_data = orig_data[0:1000, 0:1000]
+    #     data = np.copy(orig_data)
 
-        # Save the test image
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.imshow(data, cmap='gray', vmin=-20, vmax=20)
-        plt.savefig('data/test_data_{}.png'.format(rootname))
-        if os.path.exists('data/test_{}.fits'.format(rootname)):
-            os.remove('data/test_{}.fits'.format(rootname))
-        hdu = fits.PrimaryHDU()
-        hdu1 = fits.ImageHDU(data)
-        hdulist = fits.HDUList([hdu,hdu1])
-        hdulist.writeto('data/test_{}.fits'.format(rootname))
+    #     # Save the test image
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     ax.imshow(data, cmap='gray', vmin=-20, vmax=20)
+    #     plt.savefig('data/test_data_{}.png'.format(rootname))
+    #     if os.path.exists('data/test_{}.fits'.format(rootname)):
+    #         os.remove('data/test_{}.fits'.format(rootname))
+    #     hdu = fits.PrimaryHDU()
+    #     hdu1 = fits.ImageHDU(data)
+    #     hdulist = fits.HDUList([hdu,hdu1])
+    #     hdulist.writeto('data/test_{}.fits'.format(rootname))
 
-        # Make histogram movie to find best threshold
-        #make_histograms(data[0:500,0:500])
+    #     # Make histogram movie to find best threshold
+    #     #make_histograms(data[0:500,0:500])
 
-        # Binary threshold the image
-        threshold = 25
-        data[np.where(data < threshold)] = 0
-        data[np.where(data >= threshold)] = 1
+    #     # Binary threshold the image
+    #     threshold = 25
+    #     data[np.where(data < threshold)] = 0
+    #     data[np.where(data >= threshold)] = 1
 
-        # Save the binary thresholded image
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.imshow(data, cmap='gray')
-        plt.savefig('binary/binary_{}.png'.format(rootname))
-        if os.path.exists('binary/binary_{}.fits'.format(rootname)):
-            os.remove('binary/binary_{}.fits'.format(rootname))
-        hdu = fits.PrimaryHDU()
-        hdu1 = fits.ImageHDU(data)
-        hdulist = fits.HDUList([hdu,hdu1])
-        hdulist.writeto('binary/binary_{}.fits'.format(rootname))
+    #     # Save the binary thresholded image
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     ax.imshow(data, cmap='gray')
+    #     plt.savefig('binary/binary_{}.png'.format(rootname))
+    #     if os.path.exists('binary/binary_{}.fits'.format(rootname)):
+    #         os.remove('binary/binary_{}.fits'.format(rootname))
+    #     hdu = fits.PrimaryHDU()
+    #     hdu1 = fits.ImageHDU(data)
+    #     hdulist = fits.HDUList([hdu,hdu1])
+    #     hdulist.writeto('binary/binary_{}.fits'.format(rootname))
 
-        # Mark the cosmic rays
-        mark_image(data)
+    #     # Mark the cosmic rays
+    #     mark_image(data)
 
-        # Save the marked image
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.imshow(data, cmap='gray')
-        plt.savefig('marked/marked_{}.png'.format(rootname))
-        if os.path.exists('marked/marked_{}.fits'.format(rootname)):
-            os.remove('marked/marked_{}.fits'.format(rootname))
-        hdu = fits.PrimaryHDU()
-        hdu1 = fits.ImageHDU(data)
-        hdulist = fits.HDUList([hdu,hdu1])
-        hdulist.writeto('marked/marked_{}.fits'.format(rootname))
+    #     # Save the marked image
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     ax.imshow(data, cmap='gray')
+    #     plt.savefig('marked/marked_{}.png'.format(rootname))
+    #     if os.path.exists('marked/marked_{}.fits'.format(rootname)):
+    #         os.remove('marked/marked_{}.fits'.format(rootname))
+    #     hdu = fits.PrimaryHDU()
+    #     hdu1 = fits.ImageHDU(data)
+    #     hdulist = fits.HDUList([hdu,hdu1])
+    #     hdulist.writeto('marked/marked_{}.fits'.format(rootname))
 
-        # Set marked pixels back to 1
-        data[np.where(data > 0)] = 1
+    #     # Set marked pixels back to 1
+    #     data[np.where(data > 0)] = 1
 
-        # Perform dilation
-        dilated_image = dilate_image(data)
+    #     # Perform dilation
+    #     dilated_image = dilate_image(data)
 
-        # Save the dilated image
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.imshow(dilated_image, cmap='gray')
-        plt.savefig('dilated/dilated_{}.png'.format(rootname))
-        if os.path.exists('dilated/dilated_{}.fits'.format(rootname)):
-            os.remove('dilated/dilated_{}.fits'.format(rootname))
-        hdu = fits.PrimaryHDU()
-        hdu1 = fits.ImageHDU(dilated_image)
-        hdulist = fits.HDUList([hdu,hdu1])
-        hdulist.writeto('dilated/dilated_{}.fits'.format(rootname))
+    #     # Save the dilated image
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     ax.imshow(dilated_image, cmap='gray')
+    #     plt.savefig('dilated/dilated_{}.png'.format(rootname))
+    #     if os.path.exists('dilated/dilated_{}.fits'.format(rootname)):
+    #         os.remove('dilated/dilated_{}.fits'.format(rootname))
+    #     hdu = fits.PrimaryHDU()
+    #     hdu1 = fits.ImageHDU(dilated_image)
+    #     hdulist = fits.HDUList([hdu,hdu1])
+    #     hdulist.writeto('dilated/dilated_{}.fits'.format(rootname))
 
-        # Remove the CRs from the original image
-        orig_data[np.where(dilated_image == 1)] = 0
+    #     # Remove the CRs from the original image
+    #     orig_data[np.where(dilated_image == 1)] = 0
 
-        # Save the CR-cleaned image
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.imshow(orig_data, cmap='gray')
-        plt.savefig('cleaned/cleaned_{}.png'.format(rootname))
-        if os.path.exists('cleaned/cleaned_{}.fits'.format(rootname)):
-            os.remove('cleaned/cleaned_{}.fits'.format(rootname))
-        hdu = fits.PrimaryHDU()
-        hdu1 = fits.ImageHDU(orig_data)
-        hdulist = fits.HDUList([hdu,hdu1])
-        hdulist.writeto('cleaned/cleaned_{}.fits'.format(rootname))
+    #     # Save the CR-cleaned image
+    #     fig = plt.figure()
+    #     ax = fig.add_subplot(111)
+    #     ax.imshow(orig_data, cmap='gray')
+    #     plt.savefig('cleaned/cleaned_{}.png'.format(rootname))
+    #     if os.path.exists('cleaned/cleaned_{}.fits'.format(rootname)):
+    #         os.remove('cleaned/cleaned_{}.fits'.format(rootname))
+    #     hdu = fits.PrimaryHDU()
+    #     hdu1 = fits.ImageHDU(orig_data)
+    #     hdulist = fits.HDUList([hdu,hdu1])
+    #     hdulist.writeto('cleaned/cleaned_{}.fits'.format(rootname))
+
+    # Stack the cleaned images
+    print('\tCombining images')
+    cleaned_images = glob.glob('cleaned/cleaned_*.fits')
+    image_stack = []
+    for image in cleaned_images:
+        with fits.open(image) as hdulist:
+            data = hdulist[1].data
+            image_stack.append(data)
+    combined_image = np.mean(image_stack, axis=0)
+
+    # Save the combined image
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.imshow(combined_image, cmap='gray', vmin=-20, vmax=20)
+    plt.savefig('combined.png')
+    if os.path.exists('combined.fits'):
+        os.remove('combined.fits')
+    hdu = fits.PrimaryHDU()
+    hdu1 = fits.ImageHDU(combined_image)
+    hdulist = fits.HDUList([hdu,hdu1])
+    hdulist.writeto('combined.fits')
 
 
 
     # Things to do:
-    # (4) average-combine the stacked, subtracted images
     # (5) Get stats on the CRs
     # (6) Make plots of stats: # of CR per row number, col number, aggreagate of all CRs, distributions of perimeter, area
     # (7) Classification of CRs
