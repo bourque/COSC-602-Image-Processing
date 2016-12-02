@@ -1,7 +1,9 @@
 import glob
 import os
 
+from astropy.io import ascii
 from astropy.io import fits
+from astropy.table import Table
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -11,7 +13,7 @@ def dilate_image(image):
     """
     """
 
-    print('\nPerforming Dilation')
+    print('Performing Dilation')
 
     # Initializations
     nrows = image.shape[0] - 1
@@ -76,7 +78,7 @@ def make_histograms(data):
     """
     """
 
-    print('\tCreating histograms')
+    print('Creating histograms')
 
     plt.style.use('bmh')
     plt.axis('off')
@@ -130,7 +132,7 @@ def make_histograms(data):
 
 # -----------------------------------------------------------------------------
 
-def mark_image(image):
+def mark_image(image, data_table):
     """
     """
 
@@ -154,6 +156,10 @@ def mark_image(image):
 
                     # Mark the pixel
                     image[row,col] = value
+
+                    # Record it for the data_table
+                    data_dict = {'Object' : value - 1, 'Position' : (row,col)}
+                    data_table.add_row(data_dict)
 
                     # Sweep right and down
                     row_range = get_range(row, nrows)
@@ -193,107 +199,135 @@ def mark_image(image):
     return image
 
 # -----------------------------------------------------------------------------
+
+def perform_statistics(image, data_table):
+    """
+    """
+
+    print('Calculating statistics')
+
+    num_objects = int(np.max(data) - 1)
+
+    for object_number in range(2, num_objects+2):
+        data_table[object_number-2]['Area'] = image[np.where(image == object_number)].size
+
+# -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
 
-    # # Get list of files
-    # filenames = glob.glob('data/nn*_blv_tmp.fits')
+    # Get list of files
+    filenames = glob.glob('data/nn*_blv_tmp.fits')
 
-    # for i, filename in enumerate(filenames):
+    # Initialize master data table dict
+    data_table_dict = {}
 
-    #     print('\n\nProcessing image {} of {}'.format(i+1, len(filenames)))
-    #     rootname = os.path.basename(filename).split('_')[0]
+    for i, filename in enumerate(filenames):
 
-    #     # Read in the image
-    #     orig_data = fits.getdata(filename, 1)
+        print('\n\nProcessing image {} of {}'.format(i+1, len(filenames)))
+        rootname = os.path.basename(filename).split('_')[0]
 
-    #     # Get subset of image to test with
-    #     orig_data = orig_data[0:1000, 0:1000]
-    #     data = np.copy(orig_data)
+        # Read in the image
+        orig_data = fits.getdata(filename, 1)
 
-    #     # Save the test image
-    #     fig = plt.figure()
-    #     ax = fig.add_subplot(111)
-    #     ax.imshow(data, cmap='gray', vmin=-20, vmax=20)
-    #     plt.savefig('data/test_data_{}.png'.format(rootname))
-    #     if os.path.exists('data/test_{}.fits'.format(rootname)):
-    #         os.remove('data/test_{}.fits'.format(rootname))
-    #     hdu = fits.PrimaryHDU()
-    #     hdu1 = fits.ImageHDU(data)
-    #     hdulist = fits.HDUList([hdu,hdu1])
-    #     hdulist.writeto('data/test_{}.fits'.format(rootname))
+        # Get subset of image to test with
+        orig_data = orig_data[0:1000, 0:1000]
+        data = np.copy(orig_data)
 
-    #     # Make histogram movie to find best threshold
-    #     #make_histograms(data[0:500,0:500])
+        # Save the test image
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(data, cmap='gray', vmin=-20, vmax=20)
+        plt.savefig('data/test_data_{}.png'.format(rootname))
+        if os.path.exists('data/test_{}.fits'.format(rootname)):
+            os.remove('data/test_{}.fits'.format(rootname))
+        hdu = fits.PrimaryHDU()
+        hdu1 = fits.ImageHDU(data)
+        hdulist = fits.HDUList([hdu,hdu1])
+        hdulist.writeto('data/test_{}.fits'.format(rootname))
 
-    #     # Binary threshold the image
-    #     threshold = 25
-    #     data[np.where(data < threshold)] = 0
-    #     data[np.where(data >= threshold)] = 1
+        # Make histogram movie to find best threshold
+        #make_histograms(data[0:500,0:500])
 
-    #     # Save the binary thresholded image
-    #     fig = plt.figure()
-    #     ax = fig.add_subplot(111)
-    #     ax.imshow(data, cmap='gray')
-    #     plt.savefig('binary/binary_{}.png'.format(rootname))
-    #     if os.path.exists('binary/binary_{}.fits'.format(rootname)):
-    #         os.remove('binary/binary_{}.fits'.format(rootname))
-    #     hdu = fits.PrimaryHDU()
-    #     hdu1 = fits.ImageHDU(data)
-    #     hdulist = fits.HDUList([hdu,hdu1])
-    #     hdulist.writeto('binary/binary_{}.fits'.format(rootname))
+        # Binary threshold the image
+        threshold = 25
+        data[np.where(data < threshold)] = 0
+        data[np.where(data >= threshold)] = 1
 
-    #     # Mark the cosmic rays
-    #     mark_image(data)
+        # Save the binary thresholded image
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(data, cmap='gray')
+        plt.savefig('binary/binary_{}.png'.format(rootname))
+        if os.path.exists('binary/binary_{}.fits'.format(rootname)):
+            os.remove('binary/binary_{}.fits'.format(rootname))
+        hdu = fits.PrimaryHDU()
+        hdu1 = fits.ImageHDU(data)
+        hdulist = fits.HDUList([hdu,hdu1])
+        hdulist.writeto('binary/binary_{}.fits'.format(rootname))
 
-    #     # Save the marked image
-    #     fig = plt.figure()
-    #     ax = fig.add_subplot(111)
-    #     ax.imshow(data, cmap='gray')
-    #     plt.savefig('marked/marked_{}.png'.format(rootname))
-    #     if os.path.exists('marked/marked_{}.fits'.format(rootname)):
-    #         os.remove('marked/marked_{}.fits'.format(rootname))
-    #     hdu = fits.PrimaryHDU()
-    #     hdu1 = fits.ImageHDU(data)
-    #     hdulist = fits.HDUList([hdu,hdu1])
-    #     hdulist.writeto('marked/marked_{}.fits'.format(rootname))
+        # Initialize a data table that will hold results
+        data_table = Table(
+        names=['Object', 'Position', 'Area', 'Classification'],
+        dtype=[int, tuple, int, str])
 
-    #     # Set marked pixels back to 1
-    #     data[np.where(data > 0)] = 1
+        # Mark the cosmic rays
+        mark_image(data, data_table)
 
-    #     # Perform dilation
-    #     dilated_image = dilate_image(data)
+        # Save the marked image
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(data, cmap='gray')
+        plt.savefig('marked/marked_{}.png'.format(rootname))
+        if os.path.exists('marked/marked_{}.fits'.format(rootname)):
+            os.remove('marked/marked_{}.fits'.format(rootname))
+        hdu = fits.PrimaryHDU()
+        hdu1 = fits.ImageHDU(data)
+        hdulist = fits.HDUList([hdu,hdu1])
+        hdulist.writeto('marked/marked_{}.fits'.format(rootname))
 
-    #     # Save the dilated image
-    #     fig = plt.figure()
-    #     ax = fig.add_subplot(111)
-    #     ax.imshow(dilated_image, cmap='gray')
-    #     plt.savefig('dilated/dilated_{}.png'.format(rootname))
-    #     if os.path.exists('dilated/dilated_{}.fits'.format(rootname)):
-    #         os.remove('dilated/dilated_{}.fits'.format(rootname))
-    #     hdu = fits.PrimaryHDU()
-    #     hdu1 = fits.ImageHDU(dilated_image)
-    #     hdulist = fits.HDUList([hdu,hdu1])
-    #     hdulist.writeto('dilated/dilated_{}.fits'.format(rootname))
+        # Perform statistics
+        perform_statistics(data, data_table)
+        data_table_dict[rootname] = data_table
 
-    #     # Remove the CRs from the original image
-    #     orig_data[np.where(dilated_image == 1)] = 0
+        # Write out data table
+        ascii.write(data_table, '{}.dat'.format(rootname))
 
-    #     # Save the CR-cleaned image
-    #     fig = plt.figure()
-    #     ax = fig.add_subplot(111)
-    #     ax.imshow(orig_data, cmap='gray')
-    #     plt.savefig('cleaned/cleaned_{}.png'.format(rootname))
-    #     if os.path.exists('cleaned/cleaned_{}.fits'.format(rootname)):
-    #         os.remove('cleaned/cleaned_{}.fits'.format(rootname))
-    #     hdu = fits.PrimaryHDU()
-    #     hdu1 = fits.ImageHDU(orig_data)
-    #     hdulist = fits.HDUList([hdu,hdu1])
-    #     hdulist.writeto('cleaned/cleaned_{}.fits'.format(rootname))
+        # Set marked pixels back to 1
+        data[np.where(data > 0)] = 1
+
+        # Perform dilation
+        dilated_image = dilate_image(data)
+
+        # Save the dilated image
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(dilated_image, cmap='gray')
+        plt.savefig('dilated/dilated_{}.png'.format(rootname))
+        if os.path.exists('dilated/dilated_{}.fits'.format(rootname)):
+            os.remove('dilated/dilated_{}.fits'.format(rootname))
+        hdu = fits.PrimaryHDU()
+        hdu1 = fits.ImageHDU(dilated_image)
+        hdulist = fits.HDUList([hdu,hdu1])
+        hdulist.writeto('dilated/dilated_{}.fits'.format(rootname))
+
+        # Remove the CRs from the original image
+        orig_data[np.where(dilated_image == 1)] = 0
+
+        # Save the CR-cleaned image
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(orig_data, cmap='gray')
+        plt.savefig('cleaned/cleaned_{}.png'.format(rootname))
+        if os.path.exists('cleaned/cleaned_{}.fits'.format(rootname)):
+            os.remove('cleaned/cleaned_{}.fits'.format(rootname))
+        hdu = fits.PrimaryHDU()
+        hdu1 = fits.ImageHDU(orig_data)
+        hdulist = fits.HDUList([hdu,hdu1])
+        hdulist.writeto('cleaned/cleaned_{}.fits'.format(rootname))
 
     # Stack the cleaned images
-    print('\tCombining images')
+    print('Combining images')
     cleaned_images = glob.glob('cleaned/cleaned_*.fits')
     image_stack = []
     for image in cleaned_images:
@@ -314,9 +348,7 @@ if __name__ == '__main__':
     hdulist = fits.HDUList([hdu,hdu1])
     hdulist.writeto('combined.fits')
 
+    print(data_table_dict)
 
-
-    # Things to do:
-    # (5) Get stats on the CRs
     # (6) Make plots of stats: # of CR per row number, col number, aggreagate of all CRs, distributions of perimeter, area
     # (7) Classification of CRs
