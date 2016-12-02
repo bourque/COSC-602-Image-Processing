@@ -1,3 +1,4 @@
+import glob
 import os
 
 from astropy.io import fits
@@ -17,9 +18,9 @@ def dilate_image(image):
     ncols = image.shape[1] - 1
     dilated_image = np.copy(image)
 
-    mask = np.array([[0, 1, 0],
+    mask = np.array([[1, 1, 1],
                      [1, 1, 1],
-                     [0, 1, 0]])
+                     [1, 1, 1]])
 
     for row in range(2,nrows):
         print('\t{}% complete'.format(int((row/nrows) * 100)), end='\r')
@@ -71,11 +72,69 @@ def get_range(index, max_index):
 
 # -----------------------------------------------------------------------------
 
+def make_histograms(data):
+    """
+    """
+
+    print('\tCreating histograms')
+
+    plt.style.use('bmh')
+    plt.axis('off')
+    threshold_data = np.copy(data)
+    range_list = [i*0.5 for i in range(-20, 61)]
+    count = 0
+
+    for threshold in range_list:
+
+        # Binary threshold the image
+        threshold_data[np.where(data < threshold)] = 0
+        threshold_data[np.where(data >= threshold)] = 1
+
+        # Make histogram
+        hist = np.histogram(data, bins=500, range=(-10,30), density=False)
+        x = hist[1][:-1]
+        y = hist[0]
+
+        # Initialize the plot
+        fig = plt.figure(figsize=(10,8))
+        ax1 = plt.subplot2grid((2,2),(0,0), colspan=2)
+        ax2 = plt.subplot2grid((2,2),(1,0))
+        ax3 = plt.subplot2grid((2,2),(1,1))
+
+        # Plot the histogram
+        ax1.plot(x, y, color='k', linewidth=1.5)
+        ax1.set_xlabel('Dark Current (e-)')
+        ax1.set_ylabel('Number of Pixels (% of detector)')
+        yticks=ax1.get_yticks().tolist()
+        for i, ytick in enumerate(yticks):
+            yticks[i] = round((ytick / (data.shape[0] * data.shape[1])) * 100, 2)
+        ax1.set_yticklabels(yticks)
+        ax1.axvline(threshold, color='r')
+
+        # Plot the original data
+        ax2.imshow(data, cmap='gray', vmin=-20, vmax=20)
+        ax2.set_xticklabels([])
+        ax2.set_yticklabels([])
+        ax2.grid(b=False)
+
+        # Plot the thresholded data
+        ax3.imshow(threshold_data, cmap='gray')
+        ax3.set_xticklabels([])
+        ax3.set_yticklabels([])
+        ax3.grid(b=False)
+
+        # Save the image
+        plt.savefig('histogram_plots/hist_thresh{}.png'.format(count))
+
+        count += 1
+
+# -----------------------------------------------------------------------------
+
 def mark_image(image):
     """
     """
 
-    print('\nMarking objects')
+    print('Marking objects')
 
     # Initializations
     nrows = image.shape[0] - 1
@@ -89,40 +148,47 @@ def mark_image(image):
 
             if image[row, col] == 1:
 
-                # Mark the pixel
-                image[row,col] = value
+                # Do not mark if it is just one pixel
+                neighborhood = get_neighborhood(image, row, col)
+                if np.count_nonzero(neighborhood) > 1:
 
-                # Sweep right and down
-                row_range = get_range(row, nrows)
-                col_range = get_range(col, ncols)
-                for row_r in row_range:
-                    for col_r in col_range:
+                    # Mark the pixel
+                    image[row,col] = value
 
-                        if image[row_r,col_r] == value:
+                    # Sweep right and down
+                    row_range = get_range(row, nrows)
+                    col_range = get_range(col, ncols)
+                    for row_r in row_range:
+                        for col_r in col_range:
 
-                            # Mark any connected pixels in the neighborhood
-                            for row_index in [-1, 0, 1]:
-                                for col_index in [-1, 0, 1]:
+                            if image[row_r,col_r] == value:
 
-                                    # There are neighboring pixels in object, mark with value
-                                    if image[row_r + row_index, col_r + col_index] == 1:
-                                        image[row_r + row_index, col_r + col_index] = value
+                                # Mark any connected pixels in the neighborhood
+                                for row_index in [-1, 0, 1]:
+                                    for col_index in [-1, 0, 1]:
 
-                # Sweep left and up
-                for row_l in reversed(row_range):
-                    for col_l in reversed(col_range):
+                                        # There are neighboring pixels in object, mark with value
+                                        if image[row_r + row_index, col_r + col_index] == 1:
+                                            image[row_r + row_index, col_r + col_index] = value
 
-                        if image[row_l,col_l] == value:
+                    # Sweep left and up
+                    for row_l in reversed(row_range):
+                        for col_l in reversed(col_range):
 
-                            # Mark any connected pixels in the neighborhood
-                            for row_index in [-1, 0, 1]:
-                                for col_index in [-1, 0, 1]:
+                            if image[row_l,col_l] == value:
 
-                                    # There are neighboring pixels in object, mark with value
-                                    if image[row_l + row_index, col_l + col_index] == 1:
-                                        image[row_l + row_index, col_l + col_index] = value
+                                # Mark any connected pixels in the neighborhood
+                                for row_index in [-1, 0, 1]:
+                                    for col_index in [-1, 0, 1]:
 
-                value += 1
+                                        # There are neighboring pixels in object, mark with value
+                                        if image[row_l + row_index, col_l + col_index] == 1:
+                                            image[row_l + row_index, col_l + col_index] = value
+
+                    value += 1
+
+    # Set the individual 1 pixels to 0
+    image[np.where(image == 1)] = 0
 
     return image
 
@@ -131,79 +197,105 @@ def mark_image(image):
 
 if __name__ == '__main__':
 
-    # Read in the image
-    data = fits.getdata('nnid0k3wiwq_blv_tmp.fits', 1)
+    # Get list of files
+    filenames = glob.glob('data/nn*_blv_tmp.fits')
 
-    # Get subset of image to test with
-    data = data[0:1000, 0:1000]
+    for i, filename in enumerate(filenames):
 
-    # Save the test image
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.imshow(data, cmap='gray', vmin=-20, vmax=20)
-    plt.savefig('test_data.png')
-    if os.path.exists('test.fits'):
-        os.remove('test.fits')
-    hdu = fits.PrimaryHDU()
-    hdu1 = fits.ImageHDU(data)
-    hdulist = fits.HDUList([hdu,hdu1])
-    hdulist.writeto('test.fits')
+        print('\n\nProcessing image {} of {}'.format(i+1, len(filenames)))
+        rootname = os.path.basename(filename).split('_')[0]
 
-    # # Make histogram to find best threshold
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111)
-    # ax.hist(data, range=(-20,20), bins=100)
-    # plt.savefig('hist.png')
+        # Read in the image
+        orig_data = fits.getdata(filename, 1)
 
-    # Binary threshold the image
-    threshold = 20
-    data[np.where(data < threshold)] = 0
-    data[np.where(data >= threshold)] = 1
+        # Get subset of image to test with
+        orig_data = orig_data[0:1000, 0:1000]
+        data = np.copy(orig_data)
 
-    # Save the binary thresholded image
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.imshow(data, cmap='gray')
-    plt.savefig('binary.png')
-    if os.path.exists('binary.fits'):
-        os.remove('binary.fits')
-    hdu = fits.PrimaryHDU()
-    hdu1 = fits.ImageHDU(data)
-    hdulist = fits.HDUList([hdu,hdu1])
-    hdulist.writeto('binary.fits')
+        # Save the test image
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(data, cmap='gray', vmin=-20, vmax=20)
+        plt.savefig('data/test_data_{}.png'.format(rootname))
+        if os.path.exists('data/test_{}.fits'.format(rootname)):
+            os.remove('data/test_{}.fits'.format(rootname))
+        hdu = fits.PrimaryHDU()
+        hdu1 = fits.ImageHDU(data)
+        hdulist = fits.HDUList([hdu,hdu1])
+        hdulist.writeto('data/test_{}.fits'.format(rootname))
 
-    # Mark the cosmic rays
-    mark_image(data)
+        # Make histogram movie to find best threshold
+        #make_histograms(data[0:500,0:500])
 
-    # Save the marked image
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.imshow(data, cmap='gray')
-    plt.savefig('marked.png')
-    if os.path.exists('marked.fits'):
-        os.remove('marked.fits')
-    hdu = fits.PrimaryHDU()
-    hdu1 = fits.ImageHDU(data)
-    hdulist = fits.HDUList([hdu,hdu1])
-    hdulist.writeto('marked.fits')
+        # Binary threshold the image
+        threshold = 25
+        data[np.where(data < threshold)] = 0
+        data[np.where(data >= threshold)] = 1
 
-    # Perform statistics
+        # Save the binary thresholded image
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(data, cmap='gray')
+        plt.savefig('binary/binary_{}.png'.format(rootname))
+        if os.path.exists('binary/binary_{}.fits'.format(rootname)):
+            os.remove('binary/binary_{}.fits'.format(rootname))
+        hdu = fits.PrimaryHDU()
+        hdu1 = fits.ImageHDU(data)
+        hdulist = fits.HDUList([hdu,hdu1])
+        hdulist.writeto('binary/binary_{}.fits'.format(rootname))
 
-    # Set marked pixels back to 1
-    data[np.where(data > 0)] = 1
+        # Mark the cosmic rays
+        mark_image(data)
 
-    # Perform dilation (twice)
-    dilated_image = dilate_image(data)
-    dilated_image = dilate_image(dilated_image)
+        # Save the marked image
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(data, cmap='gray')
+        plt.savefig('marked/marked_{}.png'.format(rootname))
+        if os.path.exists('marked/marked_{}.fits'.format(rootname)):
+            os.remove('marked/marked_{}.fits'.format(rootname))
+        hdu = fits.PrimaryHDU()
+        hdu1 = fits.ImageHDU(data)
+        hdulist = fits.HDUList([hdu,hdu1])
+        hdulist.writeto('marked/marked_{}.fits'.format(rootname))
 
-    # Save the dilated image
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.imshow(dilated_image, cmap='gray')
-    plt.savefig('dilated.png')
-    if os.path.exists('dilated.fits'):
-        os.remove('dilated.fits')
-    hdu = fits.PrimaryHDU()
-    hdu1 = fits.ImageHDU(dilated_image)
-    hdulist = fits.HDUList([hdu,hdu1])
-    hdulist.writeto('dilated.fits')
+        # Set marked pixels back to 1
+        data[np.where(data > 0)] = 1
+
+        # Perform dilation
+        dilated_image = dilate_image(data)
+
+        # Save the dilated image
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(dilated_image, cmap='gray')
+        plt.savefig('dilated/dilated_{}.png'.format(rootname))
+        if os.path.exists('dilated/dilated_{}.fits'.format(rootname)):
+            os.remove('dilated/dilated_{}.fits'.format(rootname))
+        hdu = fits.PrimaryHDU()
+        hdu1 = fits.ImageHDU(dilated_image)
+        hdulist = fits.HDUList([hdu,hdu1])
+        hdulist.writeto('dilated/dilated_{}.fits'.format(rootname))
+
+        # Remove the CRs from the original image
+        orig_data[np.where(dilated_image == 1)] = 0
+
+        # Save the CR-cleaned image
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.imshow(orig_data, cmap='gray')
+        plt.savefig('cleaned/cleaned_{}.png'.format(rootname))
+        if os.path.exists('cleaned/cleaned_{}.fits'.format(rootname)):
+            os.remove('cleaned/cleaned_{}.fits'.format(rootname))
+        hdu = fits.PrimaryHDU()
+        hdu1 = fits.ImageHDU(orig_data)
+        hdulist = fits.HDUList([hdu,hdu1])
+        hdulist.writeto('cleaned/cleaned_{}.fits'.format(rootname))
+
+
+
+    # Things to do:
+    # (4) average-combine the stacked, subtracted images
+    # (5) Get stats on the CRs
+    # (6) Make plots of stats: # of CR per row number, col number, aggreagate of all CRs, distributions of perimeter, area
+    # (7) Classification of CRs
