@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 """Identify, classify, and remove cosmic rays in Hubble Space Telescope
-(HST) Wide Field Camera 3 (WFC3) 'dark' images.  
+(HST) Wide Field Camera 3 (WFC3) 'dark' images.
 
 Dark images are images in which the camera shutter is closed.  As such,
 the image contains only inherent dark current and high-energy cosmic
@@ -24,20 +24,29 @@ This program performs several tasks:
 Authors:
     Matthew Bourque, December 2016
     Arielle Leone, December 2016
-    
+
 Use:
     This program is intended to be executed via the command line as
     such:
         >>> python cr_reject.py
-        
+
 Outputs:
     Executing this program will result in several outputs:
     (1) test_*.png/.fits - A subset of the original image that is used
         in this program.
-        
-    
-            
+    (2) binary_*.png/.fits - The binary thresholded images
+    (3) marked_*.png/.fits - Images with individual cosmic rays marked
+        with unique values
+    (4) *.dat - Data files with stats/classification of each cosmic
+        ray for each image
+    (5) area_*.png - Histograms of cosmic ray area distributions for
+        each image
+    (6) dilated_*.png/.fits - Images with cosmic ray mask dilated
+    (7) cleaned_*.png/.fits - Original images with cosmic rays removed
+    (8) combined.png/.fits - The final combined, cr-cleaned image
+
 Dependencies:
+
     The user must have a Python 3.5 installation.  The astropy,
     matplotlib and numpy external libraries are also required.
 """
@@ -54,7 +63,17 @@ import numpy as np
 # -----------------------------------------------------------------------------
 
 def dilate_image(image):
-    """
+    """Perform dilation on the given cosmic ray mask.
+
+    Parameters
+    ----------
+    image : 2D array
+        The image to dilate.
+
+    Returns
+    -------
+    dilated_image : 2D array
+        The dilated image.
     """
 
     print('Performing Dilation')
@@ -110,6 +129,26 @@ def get_neighborhood(image, row, col):
 # -----------------------------------------------------------------------------
 
 def get_range(index, max_index):
+    """Return a range of values that is either index:index+50 or
+    index:(edge of image).
+
+    This function is used to determine the range of values in which
+    to iterate over, as to not exceed the edge of the image.  A range
+    of index:index+50 is attempted, but if the edge of the image is
+    reached, then the range index:(edge of image) is returned.
+
+    Parameters
+    ----------
+    index : int
+        The index which starts the range.
+    max_index : int
+        The maximum allowable index (i.e. the edge of the iamge).
+
+    Returns
+    -------
+    range() : iterable
+        The range of indices to iterate over.
+    """
 
     if index + 50 >= max_index:
         return range(index, max_index)
@@ -118,26 +157,40 @@ def get_range(index, max_index):
 
 # -----------------------------------------------------------------------------
 
-def make_histograms(data):
-    """
+def make_histograms(image):
+    """Create plot of histogram and corresponding binary thresholded
+    image for a range of thresholds.
+
+    This funciton will create a plot showing the original image, a
+    histogram showing the distribution of pixel values for the original
+    image, and a binary thresholded image for a given threshold.  Plots
+    are produced for thresholds between -10 and 30 electrons, with step
+    size of 0.5 electrons.  These plots can be used to create an
+    animated gif showing how the threshold applied affects the binary
+    thresholded image.
+
+    Parameters
+    ----------
+    image : 2D array
+        The image to process.
     """
 
     print('Creating histograms')
 
     plt.style.use('bmh')
     plt.axis('off')
-    threshold_data = np.copy(data)
+    threshold_image = np.copy(image)
     range_list = [i*0.5 for i in range(-20, 61)]
     count = 0
 
     for threshold in range_list:
 
         # Binary threshold the image
-        threshold_data[np.where(data < threshold)] = 0
-        threshold_data[np.where(data >= threshold)] = 1
+        threshold_image[np.where(image < threshold)] = 0
+        threshold_image[np.where(image >= threshold)] = 1
 
         # Make histogram
-        hist = np.histogram(data, bins=500, range=(-10,30), density=False)
+        hist = np.histogram(image, bins=500, range=(-10,30), density=False)
         x = hist[1][:-1]
         y = hist[0]
 
@@ -153,18 +206,18 @@ def make_histograms(data):
         ax1.set_ylabel('Number of Pixels (% of detector)')
         yticks=ax1.get_yticks().tolist()
         for i, ytick in enumerate(yticks):
-            yticks[i] = round((ytick / (data.shape[0] * data.shape[1])) * 100, 2)
+            yticks[i] = round((ytick / (image.shape[0] * image.shape[1])) * 100, 2)
         ax1.set_yticklabels(yticks)
         ax1.axvline(threshold, color='r')
 
-        # Plot the original data
-        ax2.imshow(data, cmap='gray', vmin=-20, vmax=20)
+        # Plot the original image
+        ax2.imshow(image, cmap='gray', vmin=-20, vmax=20)
         ax2.set_xticklabels([])
         ax2.set_yticklabels([])
         ax2.grid(b=False)
 
-        # Plot the thresholded data
-        ax3.imshow(threshold_data, cmap='gray')
+        # Plot the thresholded image
+        ax3.imshow(threshold_image, cmap='gray')
         ax3.set_xticklabels([])
         ax3.set_yticklabels([])
         ax3.grid(b=False)
@@ -177,7 +230,21 @@ def make_histograms(data):
 # -----------------------------------------------------------------------------
 
 def mark_image(image, data_table):
-    """
+    """Mark each cosmic ray in the image with a unique value.
+
+    The unique value to mark cosmic rays with starts with 2 (as to
+    distinguish it from the background and other cosmic rays) and
+    increases by 1 for each unique cosmic ray. During this function,
+    the data_table is also updated with the cosmic ray number and its
+    (first found) position.
+
+    Parameters
+    ----------
+    image : 2D array
+        The image in which the cosmic rays reside.
+    data_table : table
+        A table that is to hold results.
+
     """
 
     print('Marking objects')
@@ -240,12 +307,20 @@ def mark_image(image, data_table):
     # Set the individual 1 pixels to 0
     image[np.where(image == 1)] = 0
 
-    return image
-
 # -----------------------------------------------------------------------------
 
 def perform_statistics(image, data_table):
-    """
+    """Perform statistics on each cosmic ray and update the data_table.
+
+    This function will calculate the area for each cosmic ray and
+    classify it as 'small', 'medium', or 'large' based on its area.
+
+    Parameters
+    ----------
+    image : 2D array
+        The image that contains the cosmic rays.
+    data_table : astropy Table object
+        The table that holds the statistics and classifications.
     """
 
     print('Calculating statistics')
@@ -253,11 +328,11 @@ def perform_statistics(image, data_table):
     num_objects = int(np.max(data) - 1)
 
     for object_number in range(2, num_objects+2):
-    
+
         # Determine the area
         area = image[np.where(image == object_number)].size
         data_table[object_number-2]['Area'] = area
-        
+
         # Classify the cosmic ray
         if area < 5:
         	data_table[object_number-2]['Classification'] = 'S'
@@ -348,7 +423,7 @@ if __name__ == '__main__':
 
         # Write out data table
         ascii.write(data_table, '{}.dat'.format(rootname))
-        
+
 	    # Plot the distribution of area
         plt.style.use('bmh')
         plt.axis('off')
@@ -358,7 +433,7 @@ if __name__ == '__main__':
         ax.text(27, 450, '{} total'.format(len(data_table['Area'])), color='g')
         ax.set_xlabel('Area (pixels)')
         plt.savefig('area/area_{}.png'.format(rootname))
-        
+
     	# Plot the classified cosmic rays
         classified_image = np.copy(data)
         for entry in data_table:
