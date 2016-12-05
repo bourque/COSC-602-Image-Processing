@@ -1,3 +1,47 @@
+#! /usr/bin/env python
+
+"""Identify, classify, and remove cosmic rays in Hubble Space Telescope
+(HST) Wide Field Camera 3 (WFC3) 'dark' images.  
+
+Dark images are images in which the camera shutter is closed.  As such,
+the image contains only inherent dark current and high-energy cosmic
+rays.  Such images are used to remove the dark current from scientific
+WFC3 data.
+
+This program performs several tasks:
+
+    (1) Uses a marking algorithm to identify indivdual cosmic rays
+    (2) Calculates the area of each identified cosmic ray
+    (3) Classifies cosmic rays as 'small', 'medium', or 'large'
+        based on the area of the cosmic ray
+    (4) Dilates the marked cosmic ray in order to conservatively
+        mark the outer edges of the cosmic ray (i.e. in case the
+        binary threshold is not ideal)
+    (5) Remove the dilated cosmic rays from the original image
+    (6) Average-combine several images to produce a cosmic ray
+        cleaned image to be used for proper calibration of WFC3 data
+
+Authors:
+    Matthew Bourque, December 2016
+    Arielle Leone, December 2016
+    
+Use:
+    This program is intended to be executed via the command line as
+    such:
+        >>> python cr_reject.py
+        
+Outputs:
+    Executing this program will result in several outputs:
+    (1) test_*.png/.fits - A subset of the original image that is used
+        in this program.
+        
+    
+            
+Dependencies:
+    The user must have a Python 3.5 installation.  The astropy,
+    matplotlib and numpy external libraries are also required.
+"""
+
 import glob
 import os
 
@@ -209,7 +253,18 @@ def perform_statistics(image, data_table):
     num_objects = int(np.max(data) - 1)
 
     for object_number in range(2, num_objects+2):
-        data_table[object_number-2]['Area'] = image[np.where(image == object_number)].size
+    
+        # Determine the area
+        area = image[np.where(image == object_number)].size
+        data_table[object_number-2]['Area'] = area
+        
+        # Classify the cosmic ray
+        if area < 5:
+        	data_table[object_number-2]['Classification'] = 'S'
+        elif 5 <= area <= 12:
+        	data_table[object_number-2]['Classification'] = 'M'
+        else:
+        	data_table[object_number-2]['Classification'] = 'L'
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -238,7 +293,7 @@ if __name__ == '__main__':
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.imshow(data, cmap='gray', vmin=-20, vmax=20)
-        plt.savefig('data/test_data_{}.png'.format(rootname))
+        plt.savefig('data/test_{}.png'.format(rootname))
         if os.path.exists('data/test_{}.fits'.format(rootname)):
             os.remove('data/test_{}.fits'.format(rootname))
         hdu = fits.PrimaryHDU()
@@ -273,6 +328,7 @@ if __name__ == '__main__':
 
         # Mark the cosmic rays
         mark_image(data, data_table)
+        marked_image = np.copy(data)
 
         # Save the marked image
         fig = plt.figure()
@@ -286,12 +342,40 @@ if __name__ == '__main__':
         hdulist = fits.HDUList([hdu,hdu1])
         hdulist.writeto('marked/marked_{}.fits'.format(rootname))
 
-        # Perform statistics
+        # Perform statistics/classification
         perform_statistics(data, data_table)
         data_table_dict[rootname] = data_table
 
         # Write out data table
         ascii.write(data_table, '{}.dat'.format(rootname))
+        
+	    # Plot the distribution of area
+        plt.style.use('bmh')
+        plt.axis('off')
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.hist(data_table['Area'], bins=40, range=(0,40), color='g')
+        ax.text(27, 450, '{} total'.format(len(data_table['Area'])), color='g')
+        ax.set_xlabel('Area (pixels)')
+        plt.savefig('area/area_{}.png'.format(rootname))
+        
+    	# Plot the classified cosmic rays
+        classified_image = np.copy(data)
+        for entry in data_table:
+            cr = np.where(classified_image == entry['Object'] + 1)
+            if entry['Classification'] == 'S':
+                classification_value = 1
+            elif entry['Classification'] == 'M':
+                classification_value = 2
+            else:
+                classification_value = 3
+            classified_image[cr] = classification_value
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        im = ax.imshow(classified_image, interpolation='none')
+        cbar = fig.colorbar(im, ax=ax, ticks=[1, 2, 3])
+        cbar.ax.set_yticklabels(['Small', 'Medium', 'Large'])
+        plt.savefig('classified/classified_{}.png'.format(rootname))
 
         # Set marked pixels back to 1
         data[np.where(data > 0)] = 1
@@ -347,8 +431,3 @@ if __name__ == '__main__':
     hdu1 = fits.ImageHDU(combined_image)
     hdulist = fits.HDUList([hdu,hdu1])
     hdulist.writeto('combined.fits')
-
-    print(data_table_dict)
-
-    # (6) Make plots of stats: # of CR per row number, col number, aggreagate of all CRs, distributions of perimeter, area
-    # (7) Classification of CRs
